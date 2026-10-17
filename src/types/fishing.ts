@@ -132,3 +132,29 @@ export interface CommunityPost {
   likeCount: number;
   likedByMe: boolean;
 }
+
+// ─── Friends + chat ─────────────────────────────────────────────────────────
+
+export type FriendState =
+  | { status: "none" }
+  | { status: "outgoing" | "incoming" | "friends"; friendshipId: string };
+
+export interface FriendRequest {
+  id: string;
+  from: Profile;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface Conversation {
+  friendshipId: string;
+  friend: Profile;
+  last?: ChatMessage;
+}

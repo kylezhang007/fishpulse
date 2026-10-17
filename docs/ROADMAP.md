@@ -39,7 +39,7 @@ Decisions confirmed with the team lead:
 * **Catch card:** the identification photo, species and icon, date, "📍 place name" (GPS at capture → OpenStreetMap place name, never coordinates), AI confidence, and a Wikipedia link (by scientific name). Can be saved to the profile and shared to Community.
 * **Community:** an X-like feed of shared cards with likes and photo zoom. Tap the avatar to open the profile.
 * **Capacity (free tiers):** about 180 simultaneous viewers (Supabase realtime about 200). Members are limited by Fishial credits (25 × 5 per month). Storage (1 GB) fits about 300 members × 10 cards.
-* **Phases:** **A** (accounts/guest, profile, avatars on the map, quick messages, 5-tab nav) ✅ → **B** (Fish ID + catch cards) ✅ live 2026-10-17 → **C** (Community "Ocean") ✅ 2026-10-17 → next: Chat, comments, photo moderation.
+* **Phases:** **A** (accounts/guest, profile, avatars on the map, quick messages, 5-tab nav) ✅ → **B** (Fish ID + catch cards) ✅ live 2026-10-17 → **C** (Community "Ocean") ✅ 2026-10-17 → **D** (Friends + 1:1 Chat) ✅ built 2026-10-17 → next: comments, photo moderation, group crews.
 
 ### V1: Hackathon MVP (this build)
 Real-time map, guest reports with species, activity, and notes, a 30-minute expiry, privacy-first approximate locations, sonar and discovery animations, and Demo plus Live adapters.

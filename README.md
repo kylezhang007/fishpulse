@@ -41,12 +41,12 @@ FishPulse is a real-time, community-powered fishing activity map. An angler taps
 | Area | State |
 | --- | --- |
 | Map, report flow, detail card, notifications, expiry | ✅ Working, browser-tested at 375 px and desktop |
-| Live Mode (Supabase realtime, anonymous auth, RLS) | ✅ Working. `npm run test:live` passes 12/12 (realtime delivery ~0.5–0.8 s); the public site receives reports from another device |
+| Live Mode (Supabase realtime, anonymous auth, RLS) | ✅ Working. `npm run test:live` passes 33/33 (realtime delivery ~0.5–0.8 s); the public site receives reports from another device |
 | Bright UI, cute animations, bottom tab bar | ✅ Shipped on fishpulse-v2 |
 | Accounts (invite code / guest), profiles, avatars | ✅ Phase A live on fishpulse-v2 |
 | Fish ID + catch cards | ✅ Live (Fishial.ai via Edge Function `identify-fish`). 5 per member per month, 180 per site per month, admins unlimited |
 | Community ("The Ocean") | ✅ Shared catch cards float in an animated ocean, with likes, profiles, and live updates. Members share; guests read |
-| Chat tab | 🕒 "Coming soon" page only, intentionally not built yet |
+| Friends + Chat | ✅ Built and Demo-tested: open a profile → Add friend → the other side accepts → 1:1 live chat with quick replies and unread badges. Members only. Live on Supabase; `npm run test:live` covers it |
 | Real iPhone / Android test | ⚠️ Not done yet. Only a phone-sized desktop browser so far |
 | Moderation UI | ⚠️ None. Admins delete via the Supabase SQL editor (see below) |
 
@@ -118,7 +118,7 @@ If `live` is requested without credentials, the app falls back to Demo Mode and 
 1. Create a project at [supabase.com](https://supabase.com).
 2. **Authentication → Sign In / Providers → Allow anonymous sign-ins → on → Save.** Required for publishing; reads work without it.
 3. **SQL Editor** → paste the migration file → **Run**. Supabase warns about "destructive operations"; that's the `drop … if exists` / `revoke` lines, which only touch the new table. Confirm.
-4. Put the project URL and publishable key in `.env`, then run `npm run test:live` to confirm 12/12.
+4. Put the project URL and publishable key in `.env`, then run `npm run test:live` to confirm 33/33.
 
 The migration creates `public.fishing_spots` with constraints and indexes, plus a trigger that sets `creator_id`, `created_at`, and a clamped `expires_at` (5 min – 6 h) and enforces a rate limit of 5 reports per user per minute. It also adds RLS policies (read active rows; insert as yourself; no update or delete) and adds the table to realtime.
 
@@ -238,7 +238,8 @@ delete from public.catches;                                                     
 * **Picking a location:** the pin marks the spot. In 🫧 Rough area mode, a dashed circle shows the ~300 m privacy cell the report will actually be published in. It hops between cells as you drag, and the marker lands in its centre. 📍 Exact pin publishes the pin point itself.
 * **Species:** the MVP offers exactly 4: Bass, Trout, Salmon, and Catfish. The report form shows a "🐠 More species coming soon!" hint, which is the talking point for the roadmap. The list lives in `FISH_SPECIES` in `src/types/fishing.ts`, and the database accepts any name, so adding species needs no migration. Each species has its own cartoon icon (approved 2026-10-16) in `src/components/animations/SpeciesIcon.tsx`: green bass with a jagged stripe and big mouth, olive trout with a pink rainbow stripe, blue-backed coral salmon with a forked tail, and grey catfish with whiskers. The icons appear on map markers, the form chips, the detail card, notifications, and the "Nice catch!" hop. Unknown species fall back to the generic mascot.
 * **Your own report:** the fish hops out with squash-and-stretch, hearts, stars, and droplets burst, and a "Nice catch! ✨" bubble appears.
-* **Community / Chat tabs:** honest "coming soon" pages. Notifications still pop up there, and **View Spot** jumps back to the map.
+* **Friends + Chat:** tap anyone's avatar → profile → **➕ Add friend**. The other member sees the request in the Chat tab (red badge) and taps **Accept**; then both get **💬 Message**. Chats are 1:1, live, with quick replies (🎣 Heading over! · 🐟 Nice one! · Where exactly? · 👍). Only friends can message each other (enforced by RLS via `are_friends()`); guests see a members-only gate. Either side can cancel, decline or unfriend. Admin wipe: `delete from public.messages; delete from public.friendships;`.
+* Notifications still pop up on every tab, and **View Spot** jumps back to the map.
 * `prefers-reduced-motion` is respected throughout.
 
 ## Project structure
@@ -279,6 +280,7 @@ docs/                         ARCHITECTURE.md, ROADMAP.md
 
 ## Changelog
 
+* **2026-10-17 (friends + chat):** Added migration `20261017040000_friends_chat.sql` (`friendships` with one per pair, request → accept, either side can remove; `messages` that only friends can send, via `are_friends()`; realtime on both) and the `SocialService` interface. Both adapters are implemented (Demo: anglers auto-accept requests and reply). UI: an Add friend → Request sent → Accept → 💬 Message button on profiles, a Chat tab with requests and conversations plus unread dots, a red badge count on the tab, a live conversation view with quick replies, and a members-only gate for guests. Demo-mode browser test passed (request → accept → message → live reply). Migration run on the live project; `npm run test:live` now passes 33/33, including guest/stranger blocks, accept rules, realtime delivery and conversation privacy. Published to fishpulse-v2.
 * **2026-10-17:** Fixed Vercel deployments being **Blocked** after the repo was created: the deploy staging folder moved from `deploy-v2/` to `../deploy-v2/` (outside git). Two blocked deployments remain in the Vercel list and can be ignored.
 * **2026-10-17 (Phase C, Community, "The Ocean"):** Added an ocean page (sky, animated waves, rising bubbles, swimming fish). Shared catch cards float up from the depths and drift, each carried by its species' cartoon fish. A post shows the author's avatar (opens the profile), the photo (opens the full card), the caption, species, place, and a like button (👍 or 💖 with count, optimistic). Members share their own cards (one share per card) from the ocean's "＋ Share" button or from a card's "🌊 Share to Community" button, with quick captions. New posts arrive live for everyone, with a bubble trail and a toast. Guests can only read. Migration `20261017030000_community.sql` (`posts`, `post_likes`, RLS, realtime) has been **run**. Fixed an ambiguous author embed with `profiles!posts_user_id_fkey`. `npm run test:live` now runs **24/24** (feed readable, can't share another member's card, guests can't like). The first live post is kylezhang's bass card. **Published to fishpulse-v2 and pushed to GitHub.**
 * **2026-10-17:** Pushed to the private GitHub repo **kylezhang007/fishpulse** (82 files; secrets scan clean). Added `AGENTS.md` (handoff notes for AI assistants) and `CLAUDE.md`. Access codes in docs and migrations are now placeholders (`<MEMBER_INVITE_CODE>`, `<ADMIN_CODE>`); the real values are in the git-ignored `CODES.local.md`. Also created a source zip (`git archive`) next to the project folder. **Before making the repo public, change the admin code:** it equals the admin's public display name.

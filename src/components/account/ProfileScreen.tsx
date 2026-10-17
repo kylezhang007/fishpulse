@@ -7,6 +7,8 @@ import { SpeciesIcon } from "../animations/SpeciesIcon";
 import { DEMO_FISHING_CAREER, type CatchCard, type Profile } from "../../types/fishing";
 import { Avatar } from "../ui/Avatar";
 import { JoinForm } from "./JoinForm";
+import { FriendButton } from "../chat/FriendButton";
+import type { SocialService } from "../../services/socialService";
 
 /**
  * Profile page — your own ("Me" tab) or someone else's (opened from the map).
@@ -21,6 +23,7 @@ export function ProfileScreen({
   onBack,
   onJoin,
   onAdminClear,
+  social,
 }: {
   profile: Profile;
   isMe: boolean;
@@ -32,6 +35,8 @@ export function ProfileScreen({
   onJoin?: (code: string, name: string) => Promise<unknown>;
   /** Admin only: wipe all hotspots (everyone's map refreshes). */
   onAdminClear?: () => Promise<number>;
+  /** Friends + chat controls when viewing another member as a member. */
+  social?: { service: SocialService; version: number; onMessage: (p: Profile) => void; onChanged: () => void };
 }) {
   const [reports, setReports] = useState<number | null>(null);
   useEffect(() => {
@@ -118,6 +123,10 @@ export function ProfileScreen({
             <p className="mt-1 text-xs font-semibold text-ink-mute">Joined {joined}</p>
           </div>
         </div>
+
+        {!isMe && social && profile.role !== "guest" && (
+          <FriendButton service={social.service} profile={profile} version={social.version} onMessage={social.onMessage} onChanged={social.onChanged} />
+        )}
 
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           {stats.map((s) => (

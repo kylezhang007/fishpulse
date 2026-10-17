@@ -14,9 +14,14 @@ import {
   type FishIdQuota,
   type FishIdResult,
   type CommunityPost,
+  type ChatMessage,
+  type Conversation,
+  type FriendRequest,
+  type FriendState,
 } from "../types/fishing";
 import { FishIdError, type FishIdService } from "./fishIdService";
 import type { CommunityService } from "./communityService";
+import type { SocialService } from "./socialService";
 import { SpotServiceError, type FishingSpotService } from "./fishingSpotService";
 import { PROFILE_ERROR_COPY, ProfileError, type ProfileService } from "./profileService";
 
@@ -64,7 +69,7 @@ const SIM_NOTES = [
 
 type ChannelMessage = { type: "spot"; spot: FishingSpot; origin: string };
 
-export class MockFishingSpotService implements FishingSpotService, ProfileService, FishIdService, CommunityService {
+export class MockFishingSpotService implements FishingSpotService, ProfileService, FishIdService, CommunityService, SocialService {
   readonly mode = "demo" as const;
   readonly syncScope = "Demo Mode · syncs between tabs of this browser only";
 
@@ -387,6 +392,116 @@ export class MockFishingSpotService implements FishingSpotService, ProfileServic
 
   async getSharedCatchIds(userId: string): Promise<Set<string>> {
     return new Set(this.posts().filter((p) => p.userId === userId).map((p) => p.card.id));
+  }
+
+  // ── Friends + chat (Demo: demo anglers accept your requests and reply) ──
+
+  private friendships: { id: string; requester: string; addressee: string; status: "pending" | "accepted"; createdAt: string }[] | null = null;
+  private chat: ChatMessage[] = [];
+  private socialListeners = new Set<{ onMessage: (m: ChatMessage) => void; onFriendshipChange: () => void }>();
+  private static REPLIES = ["Nice! 🎣", "On my way 🚤", "They're biting here too!", "What lure are you using?", "🐟🐟🐟", "Save me a spot!"];
+
+  private me(): Profile {
+    const me = this.loadMe() ?? this.memoryMe;
+    if (!me || me.role === "guest") throw new Error("Only members can use friends and chat.");
+    return me;
+  }
+  private fs(): NonNullable<MockFishingSpotService["friendships"]> {
+    if (!this.friendships) {
+      const me = this.loadMe() ?? this.memoryMe;
+      // Seed one incoming request so the Requests UI has something to show.
+      this.friendships = me && me.role !== "guest" ? [{ id: "demo-fr-kai", requester: demoId("Kai"), addressee: me.id, status: "pending", createdAt: new Date().toISOString() }] : [];
+    }
+    return this.friendships;
+  }
+  private emitFriendship() {
+    for (const l of this.socialListeners) l.onFriendshipChange();
+  }
+
+  async getFriendState(otherId: string): Promise<FriendState> {
+    const me = this.loadMe() ?? this.memoryMe;
+    if (!me) return { status: "none" };
+    const f = this.fs().find((x) => (x.requester === me.id && x.addressee === otherId) || (x.requester === otherId && x.addressee === me.id));
+    if (!f) return { status: "none" };
+    if (f.status === "accepted") return { status: "friends", friendshipId: f.id };
+    return { status: f.requester === me.id ? "outgoing" : "incoming", friendshipId: f.id };
+  }
+
+  async sendFriendRequest(otherId: string): Promise<FriendState> {
+    const me = this.me();
+    const existing = await this.getFriendState(otherId);
+    if (existing.status !== "none") return existing;
+    const id = createId();
+    this.fs().push({ id, requester: me.id, addressee: otherId, status: "pending", createdAt: new Date().toISOString() });
+    // Demo anglers accept after a moment.
+    setTimeout(() => {
+      const f = this.fs().find((x) => x.id === id);
+      if (f) {
+        f.status = "accepted";
+        this.emitFriendship();
+      }
+    }, 1800);
+    return { status: "outgoing", friendshipId: id };
+  }
+
+  async respondToRequest(friendshipId: string, accept: boolean): Promise<void> {
+    this.me();
+    const f = this.fs().find((x) => x.id === friendshipId);
+    if (!f) return;
+    if (accept) f.status = "accepted";
+    else this.friendships = this.fs().filter((x) => x.id !== friendshipId);
+    this.emitFriendship();
+  }
+
+  async removeFriendship(friendshipId: string): Promise<void> {
+    this.friendships = this.fs().filter((x) => x.id !== friendshipId);
+    this.emitFriendship();
+  }
+
+  async getIncomingRequests(): Promise<FriendRequest[]> {
+    const me = this.loadMe() ?? this.memoryMe;
+    if (!me) return [];
+    const profiles = this.demoProfiles();
+    return this.fs()
+      .filter((f) => f.addressee === me.id && f.status === "pending")
+      .map((f) => ({ id: f.id, createdAt: f.createdAt, from: profiles.find((p) => p.id === f.requester)! }))
+      .filter((r) => r.from);
+  }
+
+  async getConversations(): Promise<Conversation[]> {
+    const me = this.loadMe() ?? this.memoryMe;
+    if (!me) return [];
+    const profiles = this.demoProfiles();
+    return this.fs()
+      .filter((f) => f.status === "accepted" && (f.requester === me.id || f.addressee === me.id))
+      .map((f) => {
+        const friendId = f.requester === me.id ? f.addressee : f.requester;
+        const msgs = this.chat.filter((c) => c.senderId === friendId || c.recipientId === friendId);
+        return { friendshipId: f.id, friend: profiles.find((p) => p.id === friendId)!, last: msgs[msgs.length - 1] };
+      })
+      .filter((c) => c.friend);
+  }
+
+  async getMessages(friendId: string): Promise<ChatMessage[]> {
+    return this.chat.filter((c) => c.senderId === friendId || c.recipientId === friendId);
+  }
+
+  async sendMessage(friendId: string, body: string): Promise<ChatMessage> {
+    const me = this.me();
+    if ((await this.getFriendState(friendId)).status !== "friends") throw new Error("You can only message friends.");
+    const msg: ChatMessage = { id: createId(), senderId: me.id, recipientId: friendId, body: body.trim().slice(0, 500), createdAt: new Date().toISOString() };
+    this.chat.push(msg);
+    setTimeout(() => {
+      const reply: ChatMessage = { id: createId(), senderId: friendId, recipientId: me.id, body: pick(MockFishingSpotService.REPLIES), createdAt: new Date().toISOString() };
+      this.chat.push(reply);
+      for (const l of this.socialListeners) l.onMessage(reply);
+    }, 1400);
+    return msg;
+  }
+
+  subscribeSocial(handlers: { onMessage: (m: ChatMessage) => void; onFriendshipChange: () => void }): () => void {
+    this.socialListeners.add(handlers);
+    return () => this.socialListeners.delete(handlers);
   }
 
   // ── internals ────────────────────────────────────────────────────────────

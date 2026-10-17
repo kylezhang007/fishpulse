@@ -101,7 +101,7 @@ Activity colours, labels, and emoji come from `ACTIVITY_META` in `src/types/fish
 
 ## Navigation
 
-`App.tsx` owns a `tab` state (`map | community | chat`). The map stays mounted under the other tabs, so its camera and state survive switching. Community and Chat render `ComingSoon` and aren't built yet. Notifications float above every tab, and **View Spot** switches back to the map.
+`App.tsx` owns a `tab` state (`map | community | chat`). The map stays mounted under the other tabs, so its camera and state survive switching. Community renders `CommunityScreen` (the Ocean); Chat renders `ChatScreen` (friend requests + conversations) with `ConversationView` on top, driven by `useSocial` and the `SocialService` (`friendships` + `messages` tables, realtime on both). Notifications float above every tab, and **View Spot** switches back to the map.
 
 ## Location picking: one source of truth
 

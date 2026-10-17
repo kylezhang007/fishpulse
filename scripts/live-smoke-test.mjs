@@ -150,6 +150,40 @@ for (let i = 0; i < 50 && !refreshed; i++) await new Promise((r) => setTimeout(r
 check('"Refresh everyone" broadcast reaches other devices', refreshed);
 await B.removeAllChannels();
 
+// Friends + chat: guests can't befriend, strangers can't message, friends can (live)
+const C = createClient(URL_, KEY, opts);
+const { data: cAuth } = await C.auth.signInAnonymously();
+await C.realtime.setAuth();
+const { error: cErr } = await C.rpc("register_member", { p_code: SMOKE_CODE, p_name: `zz-smoke-${randomUUID().slice(0, 6)}`, p_color: "#ff8a65" });
+check("Second member joins for the chat test", !cErr, cErr?.message);
+const bId = bAuth.user.id;
+const cId = cAuth.user.id;
+const { error: guestFrErr } = await G.from("friendships").insert({ addressee_id: bId });
+check("Guests can't send friend requests", !!guestFrErr, guestFrErr?.code);
+const { error: strangerMsgErr } = await B.from("messages").insert({ recipient_id: cId, body: "hi stranger" });
+check("Non-friends can't message each other", !!strangerMsgErr, strangerMsgErr?.code);
+const { data: fr, error: frErr } = await B.from("friendships").insert({ addressee_id: cId }).select("id").single();
+check("Member sends a friend request", !frErr, frErr?.message);
+const { data: selfAccept } = await B.from("friendships").update({ status: "accepted" }).eq("id", fr?.id).select();
+check("Requester can't accept their own request", !selfAccept || selfAccept.length === 0);
+const { data: accepted, error: accErr } = await C.from("friendships").update({ status: "accepted", responded_at: new Date().toISOString() }).eq("id", fr?.id).select();
+check("Addressee accepts the request", !accErr && accepted?.length === 1, accErr?.message);
+const inbox = [];
+await new Promise((res) =>
+  C.channel("smoke-dm")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (p) => inbox.push(p.new))
+    .subscribe((st) => st === "SUBSCRIBED" && res()),
+);
+const body = `smoke ${randomUUID().slice(0, 6)}`;
+const { error: dmErr } = await B.from("messages").insert({ recipient_id: cId, body });
+check("Friends can message each other", !dmErr, dmErr?.message);
+for (let i = 0; i < 50 && !inbox.some((m) => m.body === body); i++) await new Promise((r) => setTimeout(r, 100));
+check("The friend receives the message in realtime", inbox.some((m) => m.body === body));
+const { data: peek } = await A.from("messages").select("id").eq("recipient_id", cId);
+check("Other users can't read the conversation", !peek || peek.length === 0);
+await B.from("friendships").delete().eq("id", fr?.id);
+await C.removeAllChannels();
+
 await A.removeAllChannels();
 const failed = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - failed}/${results.length} checks passed`);

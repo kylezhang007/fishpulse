@@ -15,7 +15,9 @@ import { ShareCatchSheet } from "../components/community/ShareCatchSheet";
 import { CatchCardView } from "../components/fishid/CatchCardView";
 import { useCommunity } from "../hooks/useCommunity";
 import { FishIdSheet } from "../components/fishid/FishIdSheet";
-import { ComingSoon } from "../components/ui/ComingSoon";
+import { ChatScreen } from "../components/chat/ChatScreen";
+import { ConversationView } from "../components/chat/ConversationView";
+import { useSocial } from "../hooks/useSocial";
 import { TabBar, type TabId } from "../components/ui/TabBar";
 import { Toast, type ToastMessage } from "../components/ui/Toast";
 import { APPROXIMATE_GRID_METERS, approximateLocation } from "../domain/location";
@@ -67,6 +69,7 @@ export function App() {
   const [fishIdOpen, setFishIdOpen] = useState(false);
   const [openCard, setOpenCard] = useState<{ card: CatchCard; fresh: boolean; owner?: Profile } | null>(null);
   const [shareOpen, setShareOpen] = useState<{ preselect?: string } | null>(null);
+  const [chatFriend, setChatFriend] = useState<Profile | null>(null);
   const [cardsVersion, setCardsVersion] = useState(0);
   const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
   const checkName = useCallback((n: string) => service.isNameAvailable(n), [service]);
@@ -112,6 +115,16 @@ export function App() {
       navigator.vibrate?.(30);
     }
   }, []);
+
+  const social = useSocial(service, isMember, me?.id, (m) => {
+    const name = social.conversations.find((c) => c.friend.id === m.senderId)?.friend.displayName ?? "a friend";
+    showToast("info", `💬 ${name}: ${m.body.slice(0, 40)}`);
+  });
+  const openChat = (friend: Profile) => {
+    setViewingProfileId(null);
+    setChatFriend(friend);
+    social.setOpenFriend(friend.id);
+  };
 
   const community = useCommunity(service, tab === "community", (p) => {
     if (p.userId !== me?.id) showToast("info", `🐟 New catch from ${p.author?.displayName ?? "an angler"}!`);
@@ -296,7 +309,40 @@ export function App() {
 
         {/* other tabs (not built yet) */}
         <AnimatePresence>
-          {tab === "chat" && <ComingSoon key={tab} tab={tab} onBack={() => setTab("map")} />}
+          {tab === "chat" && me && isMember && (
+            <ChatScreen
+              key="chat"
+              me={me}
+              requests={social.requests}
+              conversations={social.conversations}
+              unreadFor={social.unreadFor}
+              now={now}
+              onRespond={async (r, accept) => {
+                try {
+                  await service.respondToRequest(r.id, accept);
+                  if (accept) showToast("success", `You and ${r.from.displayName} are now fishing buddies! 🤝`);
+                } catch (e) {
+                  showToast("error", e instanceof Error ? e.message : "Couldn't respond.");
+                }
+                await social.refresh();
+              }}
+              onOpenChat={(f) => openChat(f)}
+              onOpenProfile={(id) => setViewingProfileId(id)}
+              onGoCommunity={() => setTab("community")}
+            />
+          )}
+          {tab === "chat" && (!me || !isMember) && (
+            <section key="chat-guest" className="absolute inset-0 z-20 grid place-items-center bg-cream px-6 text-center">
+              <div>
+                <p className="text-5xl">💬</p>
+                <h2 className="mt-2 font-display text-2xl font-extrabold text-ink">Chat is for members</h2>
+                <p className="mt-1 text-sm font-semibold text-ink-soft">Add fishing buddies and message them once you join.</p>
+                <button className="btn-primary mx-auto mt-4" onClick={() => setMembersOnly("Chat")}>
+                  🎟️ Become a member
+                </button>
+              </div>
+            </section>
+          )}
           {tab === "community" && (
             <CommunityScreen
               key="community"
@@ -337,6 +383,11 @@ export function App() {
               cardsVersion={cardsVersion}
               onOpenCard={(card) => setOpenCard({ card, fresh: false })}
               onBack={() => setViewingProfileId(null)}
+              social={
+                isMember && viewingProfile.id !== me?.id
+                  ? { service, version: social.version, onMessage: (p) => openChat(p), onChanged: () => void social.refresh() }
+                  : undefined
+              }
             />
           )}
         </AnimatePresence>
@@ -370,6 +421,7 @@ export function App() {
               }}
               onScan={() => (isMember ? setFishIdOpen(true) : setMembersOnly("Fish ID"))}
               scanLocked={!isMember}
+              badges={{ chat: isMember ? social.badge : 0 }}
             />
           )}
         </div>
@@ -438,6 +490,28 @@ export function App() {
                 setFishIdOpen(false);
                 setCardsVersion((v) => v + 1);
                 setOpenCard({ card, fresh: true });
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {chatFriend && me && (
+            <ConversationView
+              key={`chat-${chatFriend.id}`}
+              service={service}
+              me={me}
+              friend={chatFriend}
+              liveMessage={social.liveMessage}
+              now={now}
+              onBack={() => {
+                setChatFriend(null);
+                social.setOpenFriend(null);
+              }}
+              onOpenProfile={(id) => {
+                setChatFriend(null);
+                social.setOpenFriend(null);
+                setViewingProfileId(id);
               }}
             />
           )}

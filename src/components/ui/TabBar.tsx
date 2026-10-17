@@ -39,7 +39,6 @@ const TABS: { id: TabId; label: string; soon?: boolean; icon: ReactNode }[] = [
   {
     id: "chat",
     label: "Chat",
-    soon: true,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20.5 11.5c0 4.4-3.8 8-8.5 8-1.3 0-2.6-.3-3.7-.8L3.5 20l1.3-3.9a7.6 7.6 0 0 1-1.3-4.6c0-4.4 3.8-8 8.5-8s8.5 3.6 8.5 8Z" />
@@ -55,11 +54,14 @@ export function TabBar({
   onChange,
   onScan,
   scanLocked,
+  badges,
 }: {
   active: TabId;
   onChange: (t: TabId) => void;
   onScan: () => void;
   scanLocked: boolean;
+  /** Red-dot counts per tab (e.g. chat requests + unread). */
+  badges?: Partial<Record<TabId, number>>;
 }) {
   const order: TabId[] = ["map", "community", "chat", "me"];
   const tabs = order.map((id) => TABS.find((t) => t.id === id)!);
@@ -91,6 +93,16 @@ export function TabBar({
               transition={{ duration: 0.45 }}
             >
               {t.icon}
+              {!!badges?.[t.id] && (
+                <motion.span
+                  key={badges[t.id]}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1.5 -right-2.5 grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-coral px-1 text-[9px] font-black text-white"
+                >
+                  {badges[t.id]! > 9 ? "9+" : badges[t.id]}
+                </motion.span>
+              )}
               {t.soon && (
                 <span className="absolute -top-1 -right-3 rounded-full bg-sun px-1 text-[8px] leading-[13px] font-black text-white">SOON</span>
               )}

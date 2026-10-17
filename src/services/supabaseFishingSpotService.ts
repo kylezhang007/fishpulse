@@ -1,7 +1,8 @@
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
 import type { CommunityService } from "./communityService";
-import type { CommunityPost, CatchCard, ConnectionStatus, CreateFishingSpotInput, FishIdQuota, FishIdResult, FishingSpot, Profile } from "../types/fishing";
+import { rowToMessage, type MessageRow, type SocialService } from "./socialService";
+import type { ChatMessage, Conversation, FriendRequest, FriendState, CommunityPost, CatchCard, ConnectionStatus, CreateFishingSpotInput, FishIdQuota, FishIdResult, FishingSpot, Profile } from "../types/fishing";
 import { FishIdError, rowToCatch, type CatchRow, type FishIdErrorCode, type FishIdService } from "./fishIdService";
 import { SpotServiceError, type FishingSpotService } from "./fishingSpotService";
 import { PROFILE_COLUMNS, profileErrorFromMessage, rowToProfile, type ProfileRow, type ProfileService } from "./profileService";
@@ -33,7 +34,7 @@ function friendly(message: string): string {
  * Realtime uses `postgres_changes` INSERT events on `public.fishing_spots`.
  * RLS is enforced for realtime too, so clients only receive rows they may read.
  */
-export class SupabaseFishingSpotService implements FishingSpotService, ProfileService, FishIdService, CommunityService {
+export class SupabaseFishingSpotService implements FishingSpotService, ProfileService, FishIdService, CommunityService, SocialService {
   readonly mode = "live" as const;
   readonly syncScope = "Live · synced across devices via Supabase Realtime";
 
@@ -68,6 +69,133 @@ export class SupabaseFishingSpotService implements FishingSpotService, ProfileSe
     }
     if (!data?.found) return { found: false };
     return { found: true, card: rowToCatch(data.card as CatchRow, this.photoBase) };
+  }
+
+  // ── Friends + chat ───────────────────────────────────────────────────────
+
+  private async requireMe(): Promise<string> {
+    const id = await this.myId();
+    if (!id) throw new Error("Not signed in.");
+    return id;
+  }
+
+  async getFriendState(otherId: string): Promise<FriendState> {
+    const me = await this.requireMe();
+    const { data } = await this.client
+      .from("friendships")
+      .select("id,requester_id,addressee_id,status")
+      .or(`and(requester_id.eq.${me},addressee_id.eq.${otherId}),and(requester_id.eq.${otherId},addressee_id.eq.${me})`)
+      .maybeSingle();
+    if (!data) return { status: "none" };
+    if (data.status === "accepted") return { status: "friends", friendshipId: data.id };
+    return { status: data.requester_id === me ? "outgoing" : "incoming", friendshipId: data.id };
+  }
+
+  async sendFriendRequest(otherId: string): Promise<FriendState> {
+    await this.requireMe();
+    const { data, error } = await this.client.from("friendships").insert({ addressee_id: otherId }).select("id").single();
+    if (error) {
+      if (error.code === "23505") return this.getFriendState(otherId);
+      throw new Error(error.code === "42501" ? "Only members can add friends." : `Couldn't send request: ${error.message}`);
+    }
+    return { status: "outgoing", friendshipId: data.id };
+  }
+
+  async respondToRequest(friendshipId: string, accept: boolean): Promise<void> {
+    if (accept) {
+      const { error } = await this.client.from("friendships").update({ status: "accepted", responded_at: new Date().toISOString() }).eq("id", friendshipId);
+      if (error) throw new Error(`Couldn't accept: ${error.message}`);
+    } else {
+      await this.removeFriendship(friendshipId);
+    }
+  }
+
+  async removeFriendship(friendshipId: string): Promise<void> {
+    const { error } = await this.client.from("friendships").delete().eq("id", friendshipId);
+    if (error) throw new Error(error.message);
+  }
+
+  async getIncomingRequests(): Promise<FriendRequest[]> {
+    const me = await this.requireMe();
+    const { data, error } = await this.client
+      .from("friendships")
+      .select("id,created_at,from:profiles!friendships_requester_id_fkey(id,display_name,role,avatar_color,created_at)")
+      .eq("addressee_id", me)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as unknown as { id: string; created_at: string; from: ProfileRow }[])
+      .filter((r) => r.from)
+      .map((r) => ({ id: r.id, createdAt: r.created_at, from: rowToProfile(r.from) }));
+  }
+
+  async getConversations(): Promise<Conversation[]> {
+    const me = await this.requireMe();
+    const { data, error } = await this.client
+      .from("friendships")
+      .select(
+        "id,requester:profiles!friendships_requester_id_fkey(id,display_name,role,avatar_color,created_at),addressee:profiles!friendships_addressee_id_fkey(id,display_name,role,avatar_color,created_at)",
+      )
+      .eq("status", "accepted")
+      .or(`requester_id.eq.${me},addressee_id.eq.${me}`);
+    if (error) throw new Error(error.message);
+    const { data: msgs } = await this.client
+      .from("messages")
+      .select("id,sender_id,recipient_id,body,created_at")
+      .or(`sender_id.eq.${me},recipient_id.eq.${me}`)
+      .order("created_at", { ascending: false })
+      .limit(300);
+    const lastBy = new Map<string, ChatMessage>();
+    for (const m of (msgs ?? []) as MessageRow[]) {
+      const other = m.sender_id === me ? m.recipient_id : m.sender_id;
+      if (!lastBy.has(other)) lastBy.set(other, rowToMessage(m));
+    }
+    return ((data ?? []) as unknown as { id: string; requester: ProfileRow; addressee: ProfileRow }[])
+      .map((r) => {
+        const friend = rowToProfile(r.requester.id === me ? r.addressee : r.requester);
+        return { friendshipId: r.id, friend, last: lastBy.get(friend.id) };
+      })
+      .sort((a, b) => Date.parse(b.last?.createdAt ?? "0") - Date.parse(a.last?.createdAt ?? "0"));
+  }
+
+  async getMessages(friendId: string): Promise<ChatMessage[]> {
+    const me = await this.requireMe();
+    const { data, error } = await this.client
+      .from("messages")
+      .select("id,sender_id,recipient_id,body,created_at")
+      .or(`and(sender_id.eq.${me},recipient_id.eq.${friendId}),and(sender_id.eq.${friendId},recipient_id.eq.${me})`)
+      .order("created_at", { ascending: true })
+      .limit(300);
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as MessageRow[]).map(rowToMessage);
+  }
+
+  async sendMessage(friendId: string, body: string): Promise<ChatMessage> {
+    await this.requireMe();
+    const { data, error } = await this.client
+      .from("messages")
+      .insert({ recipient_id: friendId, body: body.trim().slice(0, 500) })
+      .select("id,sender_id,recipient_id,body,created_at")
+      .single();
+    if (error) throw new Error(error.code === "42501" ? "You can only message friends." : `Couldn't send: ${error.message}`);
+    return rowToMessage(data as MessageRow);
+  }
+
+  subscribeSocial(handlers: { onMessage: (m: ChatMessage) => void; onFriendshipChange: () => void }): () => void {
+    let ch: RealtimeChannel | null = null;
+    let disposed = false;
+    void this.init().then(() => {
+      if (disposed) return;
+      ch = this.client
+        .channel(`social-${Math.random().toString(36).slice(2, 8)}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (p) => handlers.onMessage(rowToMessage(p.new as MessageRow)))
+        .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => handlers.onFriendshipChange())
+        .subscribe();
+    });
+    return () => {
+      disposed = true;
+      if (ch) void this.client.removeChannel(ch);
+    };
   }
 
   // ── Community ────────────────────────────────────────────────────────────

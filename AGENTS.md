@@ -28,7 +28,7 @@ have it identified by AI (Fishial.ai), and collect a "catch card".
 
 * Node 22 is at `~/.local/node/bin`. Prefix commands with `export PATH=$HOME/.local/node/bin:$PATH`.
 * Project root: `~/Documents/FishPulse/fishpulse`.
-* Commands: `npm run dev`, `npm run typecheck`, `npm test` (Vitest, 33 tests), `npm run build`, and `npm run test:live` (21 checks against real Supabase; needs `SMOKE_INVITE_CODE` in `.env`; uses no Fishial credits).
+* Commands: `npm run dev`, `npm run typecheck`, `npm test` (Vitest, 33 tests), `npm run build`, and `npm run test:live` (33 checks against real Supabase, incl. friends + chat; needs `SMOKE_INVITE_CODE` in `.env`; uses no Fishial credits).
 * Demo Mode server without touching live data: `VITE_DATA_MODE=demo node node_modules/vite/bin/vite.js --port 5175`.
 * Double-click launchers: `打开FishPulse.command` (local preview) and `更新网上Demo.command` (deploy to fishpulse-v2).
 
@@ -42,11 +42,13 @@ src/components/fishing/         ReportForm, SpotDetailCard, TopBar, BottomBar, A
 src/components/account/         WelcomeScreen, JoinForm, MembersOnlySheet, ProfileScreen (Me page + admin tools)
 src/components/fishid/          FishIdSheet (camera → compress → place → identify), CatchCardView
 src/components/community/       CommunityScreen (ocean), PostBubble (floating post), ShareCatchSheet
-src/services/                   FishingSpotService + ProfileService + FishIdService; mock (demo) & supabase (live)
+src/components/chat/            ChatScreen (requests + chats), ConversationView (1:1 live), FriendButton (on profiles)
+src/hooks/useSocial.ts          requests, conversations, unread (last-read in localStorage), live messages, tab badge
+src/services/                   FishingSpotService + ProfileService + FishIdService + CommunityService + SocialService; mock (demo) & supabase (live)
 src/domain/                     pure, tested helpers (expiry, dedup, validation, privacy snapping, avatars, images, place)
 supabase/migrations/            run IN ORDER in Dashboard → SQL Editor (all already applied on the live project)
 supabase/functions/identify-fish/   Deno Edge Function: auth + quota + Fishial + storage + catches insert
-scripts/live-smoke-test.mjs     real-backend checks (accounts, RLS, realtime, admin guard)
+scripts/live-smoke-test.mjs     real-backend checks (accounts, RLS, realtime, admin guard, community, friends + chat)
 ```
 
 * **Roles:** `guest` (browse only), `member` (shared invite code, 25 seats), `admin` (admin code, 5 devices, unlimited Fish ID, "Clear all hotspots"). These are enforced in the DB through RLS and security-definer RPCs, not just the UI.
@@ -74,5 +76,5 @@ scripts/live-smoke-test.mjs     real-backend checks (accounts, RLS, realtime, ad
 
 ## 7. What's next (owner-approved plan)
 
-* **Phase C, Community ("The Ocean")** is done. Next candidates: Chat, comments on posts, and photo moderation (report button plus admin delete).
+* **Phase C, Community ("The Ocean")** and **Phase D, Friends + Chat** are done. Next candidates: comments on posts, photo moderation (report button plus admin delete), group crews.
 * Open items: real-phone test (iPhone Safari, Android Chrome); a moderation path for photos; removing deleted spots from open clients instantly (DELETE events); a QR code for the demo; and, before going public, an admin code that differs from the admin display name.
