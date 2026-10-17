@@ -122,6 +122,23 @@ check("Non-admins cannot clear the map", /not_admin/.test(clearErr?.message ?? "
 const { data: kzFree } = await B.rpc("is_name_available", { p_name: "KyleZhang" });
 check('The name "kylezhang" is reserved for the admin', kzFree === false);
 
+// Community (Ocean) — permissions only; never posts real content
+const { error: feedErr } = await createClient(URL_, KEY, opts).from("posts").select("id").limit(1);
+check("Anyone can read the community feed", !feedErr, feedErr?.message);
+const { data: someCatch } = await A.from("catches").select("id,user_id").neq("user_id", bAuth.user.id).limit(1).maybeSingle();
+if (someCatch) {
+  const { error: stealErr } = await B.from("posts").insert({ catch_id: someCatch.id, caption: "not mine" });
+  check("Members can't share someone else's catch card", !!stealErr, stealErr?.code);
+}
+const G = createClient(URL_, KEY, opts);
+await G.auth.signInAnonymously();
+await G.rpc("register_guest", { p_color: "#9aa6bb" });
+const { data: anyPost } = await G.from("posts").select("id").limit(1).maybeSingle();
+if (anyPost) {
+  const { error: guestLikeErr } = await G.from("post_likes").insert({ post_id: anyPost.id });
+  check("Guests can't like posts", !!guestLikeErr, guestLikeErr?.code);
+}
+
 // "Everyone refresh" broadcast reaches other clients
 let refreshed = false;
 const ctlA = A.channel("fishpulse-control", { config: { broadcast: { self: true } } });

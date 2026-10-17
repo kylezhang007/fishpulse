@@ -99,7 +99,7 @@ export function ProfileScreen({
       <div className="mx-auto max-w-lg">
         {onBack && (
           <button onClick={onBack} className="mb-2 text-sm font-extrabold text-sky">
-            ← Back to map
+            ← Back
           </button>
         )}
 

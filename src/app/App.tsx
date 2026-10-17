@@ -10,7 +10,10 @@ import { MapControls } from "../components/map/MapControls";
 import { MembersOnlySheet } from "../components/account/MembersOnlySheet";
 import { ProfileScreen } from "../components/account/ProfileScreen";
 import { WelcomeScreen } from "../components/account/WelcomeScreen";
+import { CommunityScreen } from "../components/community/CommunityScreen";
+import { ShareCatchSheet } from "../components/community/ShareCatchSheet";
 import { CatchCardView } from "../components/fishid/CatchCardView";
+import { useCommunity } from "../hooks/useCommunity";
 import { FishIdSheet } from "../components/fishid/FishIdSheet";
 import { ComingSoon } from "../components/ui/ComingSoon";
 import { TabBar, type TabId } from "../components/ui/TabBar";
@@ -23,7 +26,7 @@ import { useMyProfile, useProfiles } from "../hooks/useProfile";
 import { useNow } from "../hooks/useNow";
 import { config } from "../lib/config";
 import { createFishingSpotService } from "../services";
-import type { CatchCard, FishingSpot, LatLng, SpotArrival } from "../types/fishing";
+import type { CatchCard, FishingSpot, LatLng, Profile, SpotArrival } from "../types/fishing";
 
 /** How long each arrival kind keeps its entrance animation flag. */
 const ARRIVAL_MS: Record<SpotArrival, number> = { initial: 1600, quiet: 1200, discovery: 3600, own: 3800 };
@@ -62,7 +65,8 @@ export function App() {
   const { profile: me, isMember } = account;
   const [membersOnly, setMembersOnly] = useState<string | null>(null); // feature name a guest tried to use
   const [fishIdOpen, setFishIdOpen] = useState(false);
-  const [openCard, setOpenCard] = useState<{ card: CatchCard; fresh: boolean } | null>(null);
+  const [openCard, setOpenCard] = useState<{ card: CatchCard; fresh: boolean; owner?: Profile } | null>(null);
+  const [shareOpen, setShareOpen] = useState<{ preselect?: string } | null>(null);
   const [cardsVersion, setCardsVersion] = useState(0);
   const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
   const checkName = useCallback((n: string) => service.isNameAvailable(n), [service]);
@@ -108,6 +112,10 @@ export function App() {
       navigator.vibrate?.(30);
     }
   }, []);
+
+  const community = useCommunity(service, tab === "community", (p) => {
+    if (p.userId !== me?.id) showToast("info", `🐟 New catch from ${p.author?.displayName ?? "an angler"}!`);
+  });
 
   const { spots, loadState, loadError, connection, createSpot, retry, simulate } = useFishingSpots(service, {
     ttlMinutes: config.reportTtlMinutes,
@@ -220,7 +228,7 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [mode]);
 
-  const sheetOpen = mode === "report" || selectedSpot !== null || membersOnly !== null || fishIdOpen;
+  const sheetOpen = mode === "report" || selectedSpot !== null || membersOnly !== null || fishIdOpen || shareOpen !== null;
   const bottomInset = sheetOpen ? sheetHeight : BOTTOM_BAR_INSET;
   const userLocation = geo.status === "ok" ? geo.position : null;
   const showSimulator = service.mode === "demo" && config.enableSimulator && simulate ? runSimulation : undefined;
@@ -288,7 +296,26 @@ export function App() {
 
         {/* other tabs (not built yet) */}
         <AnimatePresence>
-          {(tab === "community" || tab === "chat") && <ComingSoon key={tab} tab={tab} onBack={() => setTab("map")} />}
+          {tab === "chat" && <ComingSoon key={tab} tab={tab} onBack={() => setTab("map")} />}
+          {tab === "community" && (
+            <CommunityScreen
+              key="community"
+              posts={community.posts}
+              loading={community.loading}
+              error={community.error}
+              freshIds={community.freshIds}
+              now={now}
+              canShare={isMember}
+              onShare={() => (isMember ? setShareOpen({}) : setMembersOnly("Sharing to the community"))}
+              onOpenProfile={(id) => setViewingProfileId(id)}
+              onOpenCard={(p) => setOpenCard({ card: p.card, fresh: false, owner: p.author })}
+              onLike={(p) => {
+                if (!isMember) return setMembersOnly("Liking catches");
+                community.toggleLike(p).catch((e) => showToast("error", e instanceof Error ? e.message : "Couldn't like."));
+              }}
+              onRetry={() => void community.reload()}
+            />
+          )}
           {tab === "me" && me && (
             <ProfileScreen
               key="me"
@@ -384,6 +411,23 @@ export function App() {
               onHeightChange={setSheetHeight}
             />
           )}
+          {shareOpen && me && (
+            <ShareCatchSheet
+              key="share"
+              service={service}
+              userId={me.id}
+              preselectId={shareOpen.preselect}
+              onClose={() => setShareOpen(null)}
+              onHeightChange={setSheetHeight}
+              onShared={(post) => {
+                setShareOpen(null);
+                setViewingProfileId(null);
+                setTab("community");
+                community.injectPost(post, false);
+                showToast("success", "Released into the ocean! 🌊");
+              }}
+            />
+          )}
           {fishIdOpen && (
             <FishIdSheet
               key="fish-id"
@@ -404,7 +448,16 @@ export function App() {
             <CatchCardView
               key={openCard.card.id}
               card={openCard.card}
-              owner={profiles[openCard.card.userId] ?? (openCard.card.userId === me?.id ? me : null)}
+              owner={openCard.owner ?? profiles[openCard.card.userId] ?? (openCard.card.userId === me?.id ? me : null)}
+              onShare={
+                isMember && me && openCard.card.userId === me.id
+                  ? () => {
+                      const id = openCard.card.id;
+                      setOpenCard(null);
+                      setShareOpen({ preselect: id });
+                    }
+                  : undefined
+              }
               justCreated={openCard.fresh}
               onClose={() => setOpenCard(null)}
             />

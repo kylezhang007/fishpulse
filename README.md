@@ -30,6 +30,7 @@ FishPulse is a real-time, community-powered fishing activity map. An angler taps
 - 每次改功能、配置或部署，都要同步更新本 README。
 - **后续规划（已确认）**：见 `docs/ROADMAP.md` 的「Agreed plan」。邀请码 <MEMBER_INVITE_CODE>（上限 25 人），访客只能看；识鱼用 Fishial（每月 200 credits，每个会员每月 5 次）。
 - **管理员**：邀请码填 `<ADMIN_CODE>`（不分大小写，不用填名字），就会以 👑 kylezhang 身份登录，最多 5 台设备。识鱼不限次数（阶段 B 生效），「我的」页面有「🧹 Clear all hotspots」按钮，要连按两下确认，所有打开的页面会立刻同步清空。备用方法：在 Supabase 的 SQL Editor 里运行已保存的 `delete from public.fishing_spots;`。
+- **社区（海洋）**：底部「Community」页。会员把自己的鱼卡分享到海里，所有人能看、能点赞、能点头像看主页，新动态会实时从海底浮上来。
 - **识鱼**：中间的 📷 按钮。Fishial 密钥只存在 Supabase → Edge Functions → Secrets 里（名字必须是 `FISHIAL_CLIENT_ID` / `FISHIAL_CLIENT_SECRET`）。会员每月 5 次，全站每月 180 次，管理员不限次数。额度可以在 `app_settings` 表里修改，详见下方「Fish ID」一节。
 - **项目位置**：`~/Documents/FishPulse/fishpulse`（2026-10-17 从临时文件夹完整复制过来，以后都在这里开发）。
 
@@ -44,7 +45,8 @@ FishPulse is a real-time, community-powered fishing activity map. An angler taps
 | Bright UI, cute animations, bottom tab bar | ✅ Shipped on fishpulse-v2 |
 | Accounts (invite code / guest), profiles, avatars | ✅ Phase A live on fishpulse-v2 |
 | Fish ID + catch cards | ✅ Live (Fishial.ai via Edge Function `identify-fish`). 5 per member per month, 180 per site per month, admins unlimited |
-| Community / Chat tabs | 🕒 "Coming soon" pages only, intentionally not built yet |
+| Community ("The Ocean") | ✅ Shared catch cards float in an animated ocean, with likes, profiles, and live updates. Members share; guests read |
+| Chat tab | 🕒 "Coming soon" page only, intentionally not built yet |
 | Real iPhone / Android test | ⚠️ Not done yet. Only a phone-sized desktop browser so far |
 | Moderation UI | ⚠️ None. Admins delete via the Supabase SQL editor (see below) |
 
@@ -173,6 +175,15 @@ select display_name, role, created_at from public.profiles order by created_at;
 * **Test-only code:** `npm run test:live` registers members with a separate code from `SMOKE_INVITE_CODE` in the local `.env` (max 1000 uses, never shipped), so tests don't use up the 25 seats. Test members are named `zz-smoke-…` / `zz-ui-check`. Disable the code with the `update … active = false` line above, using that code.
 * Migrations to run, in order: `20261016000000_create_fishing_spots.sql`, `20261017000000_profiles_and_invites.sql`, then `20261017010000_admin.sql` (all three have already been run on the current project).
 
+## Community — "The Ocean"
+
+* **Community tab** = an animated sea. Each shared catch card floats up from the depths and drifts on the water, carried by its species' fish.
+* **Share:** members tap **＋ Share** (or **🌊 Share to Community** on a catch card), pick one of their own cards, add a caption (quick captions available), and release it. Each card can be shared once. Guests see 🔒.
+* **Interact:** tap an avatar to open that angler's profile (stats, badges, card wall); tap the photo to open the full card; 👍 → 💖 to like (members).
+* **Live:** new posts appear for everyone instantly, with a bubble trail and a "🐟 New catch from …" toast.
+* **Data:** `posts` (one per catch, `user_id` → profiles, `catch_id` → catches) and `post_likes`. RLS: anyone reads; members insert their own; authors delete their own. The feed query embeds `catches`, `profiles!posts_user_id_fkey`, and `post_likes(count)`.
+* **Admin:** clear the ocean with `delete from public.posts;` in the SQL Editor.
+
 ## Fish ID (Fishial.ai)
 
 * **Flow:** 📷 centre button (members and admins) → photo (camera or library) → compressed to ≤1280 px JPEG → optional one-shot location turned into a **place name only** (OpenStreetMap Nominatim) → Supabase **Edge Function `identify-fish`** → Fishial → collectible **catch card**, saved automatically to the Me page.
@@ -192,7 +203,7 @@ delete from public.catches;                                                     
 
 ## Deploying
 
-**Current method (used for fishpulse-v2):** `更新网上Demo.command` runs `npm run build` locally, copies `dist/` into `deploy-v2/`, and uploads it with `vercel deploy --prod --project fishpulse-v2`. Vite bakes the `VITE_*` values from **your local `.env`** into the bundle at build time.
+**Current method (used for fishpulse-v2):** `更新网上Demo.command` runs `npm run build` locally, copies `dist/` into **`../deploy-v2/`, which is outside the git repo**, and uploads it with `vercel deploy --prod --project fishpulse-v2`. The staging folder must stay outside the repo: deploying from inside it makes Vercel attach the git commit author, and the Hobby plan **blocks** the deployment ("commit author doesn't have permission"). Vite bakes the `VITE_*` values from **your local `.env`** into the bundle at build time.
 
 **Later, with GitHub:** connect the repo in Vercel (Add New Project → import). `vercel.json` already sets the Vite framework, `npm run build`, and `dist/`. You **must** then add `VITE_DATA_MODE`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY` under Vercel → Settings → Environment Variables, because `.env` is git-ignored.
 
@@ -268,6 +279,8 @@ docs/                         ARCHITECTURE.md, ROADMAP.md
 
 ## Changelog
 
+* **2026-10-17:** Fixed Vercel deployments being **Blocked** after the repo was created: the deploy staging folder moved from `deploy-v2/` to `../deploy-v2/` (outside git). Two blocked deployments remain in the Vercel list and can be ignored.
+* **2026-10-17 (Phase C, Community, "The Ocean"):** Added an ocean page (sky, animated waves, rising bubbles, swimming fish). Shared catch cards float up from the depths and drift, each carried by its species' cartoon fish. A post shows the author's avatar (opens the profile), the photo (opens the full card), the caption, species, place, and a like button (👍 or 💖 with count, optimistic). Members share their own cards (one share per card) from the ocean's "＋ Share" button or from a card's "🌊 Share to Community" button, with quick captions. New posts arrive live for everyone, with a bubble trail and a toast. Guests can only read. Migration `20261017030000_community.sql` (`posts`, `post_likes`, RLS, realtime) has been **run**. Fixed an ambiguous author embed with `profiles!posts_user_id_fkey`. `npm run test:live` now runs **24/24** (feed readable, can't share another member's card, guests can't like). The first live post is kylezhang's bass card. **Published to fishpulse-v2 and pushed to GitHub.**
 * **2026-10-17:** Pushed to the private GitHub repo **kylezhang007/fishpulse** (82 files; secrets scan clean). Added `AGENTS.md` (handoff notes for AI assistants) and `CLAUDE.md`. Access codes in docs and migrations are now placeholders (`<MEMBER_INVITE_CODE>`, `<ADMIN_CODE>`); the real values are in the git-ignored `CODES.local.md`. Also created a source zip (`git archive`) next to the project folder. **Before making the repo public, change the admin code:** it equals the admin's public display name.
 * **2026-10-17 (Phase B, Fish ID):** **Live.** The 📷 centre button takes a photo, compresses it, looks up a one-shot place name (OpenStreetMap), and sends it to the Edge Function `identify-fish`. The function checks member or admin, applies the monthly quota (admins exempt), calls Fishial v2 (`/auth` then `/recognize`), stores the photo in the public `catch-photos` bucket, and inserts a `catches` row. The result is a flip-in collectible card (No., AI %, species and icon, scientific name, date, 📍 place, Wikipedia link, owner) that also appears on the Me page wall. Verified on the real backend: a bass photo returned *Largemouth black bass* (*Micropterus nigricans*) at 79% and 75%, mapped to the Bass icon. The photo URL is public, the quota went from 5 to 4 for a test member, and the admin sees "Unlimited". Testing used **2 Fishial credits**. Published to fishpulse-v2.
 * **2026-10-17:** Moved the project to `~/Documents/FishPulse/fishpulse` (full copy, verified identical; typecheck, tests, and build pass there). The old temporary session folder is no longer used.

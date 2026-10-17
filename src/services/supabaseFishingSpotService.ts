@@ -1,6 +1,7 @@
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
-import type { CatchCard, ConnectionStatus, CreateFishingSpotInput, FishIdQuota, FishIdResult, FishingSpot, Profile } from "../types/fishing";
+import type { CommunityService } from "./communityService";
+import type { CommunityPost, CatchCard, ConnectionStatus, CreateFishingSpotInput, FishIdQuota, FishIdResult, FishingSpot, Profile } from "../types/fishing";
 import { FishIdError, rowToCatch, type CatchRow, type FishIdErrorCode, type FishIdService } from "./fishIdService";
 import { SpotServiceError, type FishingSpotService } from "./fishingSpotService";
 import { PROFILE_COLUMNS, profileErrorFromMessage, rowToProfile, type ProfileRow, type ProfileService } from "./profileService";
@@ -32,7 +33,7 @@ function friendly(message: string): string {
  * Realtime uses `postgres_changes` INSERT events on `public.fishing_spots`.
  * RLS is enforced for realtime too, so clients only receive rows they may read.
  */
-export class SupabaseFishingSpotService implements FishingSpotService, ProfileService, FishIdService {
+export class SupabaseFishingSpotService implements FishingSpotService, ProfileService, FishIdService, CommunityService {
   readonly mode = "live" as const;
   readonly syncScope = "Live · synced across devices via Supabase Realtime";
 
@@ -67,6 +68,89 @@ export class SupabaseFishingSpotService implements FishingSpotService, ProfileSe
     }
     if (!data?.found) return { found: false };
     return { found: true, card: rowToCatch(data.card as CatchRow, this.photoBase) };
+  }
+
+  // ── Community ────────────────────────────────────────────────────────────
+
+  private static POST_SELECT =
+    "id,user_id,caption,created_at,catches(id,user_id,card_no,species_common,species_scientific,icon_species,certainty,photo_path,place_name,wiki_url,caught_at),profiles!posts_user_id_fkey(id,display_name,role,avatar_color,created_at),post_likes(count)";
+
+  private async rowsToPosts(rows: Record<string, unknown>[]): Promise<CommunityPost[]> {
+    const { data: s } = await this.client.auth.getSession();
+    const me = s.session?.user.id;
+    let mine = new Set<string>();
+    if (me && rows.length) {
+      const { data } = await this.client.from("post_likes").select("post_id").eq("user_id", me).in("post_id", rows.map((r) => r.id as string));
+      mine = new Set((data ?? []).map((d) => d.post_id as string));
+    }
+    return rows
+      .filter((r) => r.catches)
+      .map((r) => {
+        const likes = r.post_likes as { count: number }[] | undefined;
+        return {
+          id: r.id as string,
+          userId: r.user_id as string,
+          caption: (r.caption as string | null) ?? undefined,
+          createdAt: new Date(r.created_at as string).toISOString(),
+          card: rowToCatch(r.catches as CatchRow, this.photoBase),
+          author: r.profiles ? rowToProfile(r.profiles as ProfileRow) : undefined,
+          likeCount: Number(likes?.[0]?.count ?? 0),
+          likedByMe: mine.has(r.id as string),
+        };
+      });
+  }
+
+  async getFeed(limit = 40): Promise<CommunityPost[]> {
+    await this.init();
+    const { data, error } = await this.client.from("posts").select(SupabaseFishingSpotService.POST_SELECT).order("created_at", { ascending: false }).limit(limit);
+    if (error) throw new Error(`Couldn't load the ocean: ${error.message}`);
+    return this.rowsToPosts((data ?? []) as unknown as Record<string, unknown>[]);
+  }
+
+  async sharePost(catchId: string, caption?: string): Promise<CommunityPost> {
+    await this.init();
+    const { data, error } = await this.client
+      .from("posts")
+      .insert({ catch_id: catchId, caption: caption?.trim() || null })
+      .select(SupabaseFishingSpotService.POST_SELECT)
+      .single();
+    if (error) {
+      if (error.code === "23505") throw new Error("You've already shared this card.");
+      if (error.code === "42501") throw new Error("Only members can share to the community.");
+      throw new Error(`Couldn't share: ${error.message}`);
+    }
+    return (await this.rowsToPosts([data as unknown as Record<string, unknown>]))[0];
+  }
+
+  async setLike(postId: string, liked: boolean): Promise<void> {
+    await this.init();
+    if (liked) {
+      const { error } = await this.client.from("post_likes").insert({ post_id: postId });
+      if (error && error.code !== "23505") throw new Error(error.code === "42501" ? "Only members can like." : error.message);
+    } else {
+      const { data: s } = await this.client.auth.getSession();
+      await this.client.from("post_likes").delete().eq("post_id", postId).eq("user_id", s.session?.user.id ?? "");
+    }
+  }
+
+  async getSharedCatchIds(userId: string): Promise<Set<string>> {
+    const { data } = await this.client.from("posts").select("catch_id").eq("user_id", userId);
+    return new Set((data ?? []).map((d) => d.catch_id as string));
+  }
+
+  subscribePosts(onPost: (post: CommunityPost) => void): () => void {
+    const ch = this.client
+      .channel(`posts-${Math.random().toString(36).slice(2, 8)}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts" }, async (payload) => {
+        // The realtime row has no joins — fetch the full post.
+        const { data } = await this.client.from("posts").select(SupabaseFishingSpotService.POST_SELECT).eq("id", (payload.new as { id: string }).id).maybeSingle();
+        if (data) {
+          const [post] = await this.rowsToPosts([data as unknown as Record<string, unknown>]);
+          if (post) onPost(post);
+        }
+      })
+      .subscribe();
+    return () => void this.client.removeChannel(ch);
   }
 
   async getFishIdQuota(): Promise<FishIdQuota> {

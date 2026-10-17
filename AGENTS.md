@@ -41,6 +41,7 @@ src/components/animations/      FishIcon mascot, SpeciesIcon (4 species), ripple
 src/components/fishing/         ReportForm, SpotDetailCard, TopBar, BottomBar, ActivityIndicator
 src/components/account/         WelcomeScreen, JoinForm, MembersOnlySheet, ProfileScreen (Me page + admin tools)
 src/components/fishid/          FishIdSheet (camera → compress → place → identify), CatchCardView
+src/components/community/       CommunityScreen (ocean), PostBubble (floating post), ShareCatchSheet
 src/services/                   FishingSpotService + ProfileService + FishIdService; mock (demo) & supabase (live)
 src/domain/                     pure, tested helpers (expiry, dedup, validation, privacy snapping, avatars, images, place)
 supabase/migrations/            run IN ORDER in Dashboard → SQL Editor (all already applied on the live project)
@@ -55,7 +56,7 @@ scripts/live-smoke-test.mjs     real-backend checks (accounts, RLS, realtime, ad
 ## 5. Live infrastructure
 
 * **Supabase project:** `unqtvmligccaduzrhixs` (US West, free plan). Access is through the owner's dashboard in Chrome; there is no CLI login. Run SQL by pasting it into the SQL Editor. Deploy the Edge Function through Dashboard → Edge Functions → identify-fish → Code.
-* **Vercel:** `更新网上Demo.command` builds with the local `.env` and runs `vercel deploy --prod --project fishpulse-v2` from `deploy-v2/`. Vite bakes env vars in at **build** time.
+* **Vercel:** `更新网上Demo.command` builds with the local `.env` and runs `vercel deploy --prod --project fishpulse-v2` from `../deploy-v2/` (outside the repo). Vite bakes env vars in at **build** time.
 * **GitHub:** private repo `fishpulse`. It may go public later as a portfolio piece, which is why rule 2 matters.
 
 ## 6. Traps we already hit (save yourself time)
@@ -68,9 +69,10 @@ scripts/live-smoke-test.mjs     real-backend checks (accounts, RLS, realtime, ad
 * Exiting overlays should set `exit={{ pointerEvents: "none" }}` so a fading layer never blocks taps.
 * The desktop app's browser pane can throttle rendering to about 1 fps. Then ResizeObserver, animations, and screenshots lag, so trust DOM and JS checks over screenshots.
 * Supabase dashboard forms (React) ignore values set by script. Type into them with real keystrokes. Secret **names** must match exactly.
+* Vercel deploys must run from `../deploy-v2` (**outside** the git repo). Inside the repo, the CLI attaches the git author and the Hobby plan marks the deploy **Blocked**.
 * Never run Perl `s|…|…|` substitutions on TypeScript that contains `|` (union types). That broke code twice; use a Node script with exact string replacement.
 
 ## 7. What's next (owner-approved plan)
 
-* **Phase C, Community:** an X-like feed of shared catch cards, with likes, photo zoom, and tapping an avatar to open the profile. Members post; guests read.
+* **Phase C, Community ("The Ocean")** is done. Next candidates: Chat, comments on posts, and photo moderation (report button plus admin delete).
 * Open items: real-phone test (iPhone Safari, Android Chrome); a moderation path for photos; removing deleted spots from open clients instantly (DELETE events); a QR code for the demo; and, before going public, an admin code that differs from the admin display name.

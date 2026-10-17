@@ -118,3 +118,17 @@ export interface FishIdQuota {
 }
 
 export type FishIdResult = { found: true; card: CatchCard } | { found: false };
+
+// ─── Community ("the Ocean") ────────────────────────────────────────────────
+
+/** A shared catch card in the community feed. */
+export interface CommunityPost {
+  id: string;
+  userId: string;
+  caption?: string;
+  createdAt: string;
+  card: CatchCard;
+  author?: Profile;
+  likeCount: number;
+  likedByMe: boolean;
+}

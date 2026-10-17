@@ -13,8 +13,10 @@ import {
   type CatchCard,
   type FishIdQuota,
   type FishIdResult,
+  type CommunityPost,
 } from "../types/fishing";
 import { FishIdError, type FishIdService } from "./fishIdService";
+import type { CommunityService } from "./communityService";
 import { SpotServiceError, type FishingSpotService } from "./fishingSpotService";
 import { PROFILE_ERROR_COPY, ProfileError, type ProfileService } from "./profileService";
 
@@ -62,7 +64,7 @@ const SIM_NOTES = [
 
 type ChannelMessage = { type: "spot"; spot: FishingSpot; origin: string };
 
-export class MockFishingSpotService implements FishingSpotService, ProfileService, FishIdService {
+export class MockFishingSpotService implements FishingSpotService, ProfileService, FishIdService, CommunityService {
   readonly mode = "demo" as const;
   readonly syncScope = "Demo Mode · syncs between tabs of this browser only";
 
@@ -307,6 +309,84 @@ export class MockFishingSpotService implements FishingSpotService, ProfileServic
 
   async getCatches(userId: string): Promise<CatchCard[]> {
     return this.loadCatches().filter((c) => c.userId === userId);
+  }
+
+  // ── Community (Demo: sample posts + your own shares, this browser only) ──
+
+  private demoPosts: CommunityPost[] | null = null;
+  private postListeners = new Set<(p: CommunityPost) => void>();
+  private myLikes = new Set<string>();
+
+  private seedPosts(): CommunityPost[] {
+    const profiles = this.demoProfiles();
+    const captions = ["Look what I caught! 🎣", "Personal best! 🏆", "Sunrise bite was unreal 🌅", "Back in the water it goes 💦", "Tube jig did the trick"];
+    const species = ["Bass", "Trout", "Salmon", "Catfish", "Trout"];
+    return captions.map((caption, i) => {
+      const author = profiles[i % profiles.length];
+      const sp = species[i];
+      const created = new Date(Date.now() - (i * 47 + 6) * 60_000).toISOString();
+      return {
+        id: `demo-post-${i}`,
+        userId: author.id,
+        caption,
+        createdAt: created,
+        author,
+        likeCount: [12, 7, 9, 3, 5][i],
+        likedByMe: false,
+        card: {
+          id: `demo-card-${i}`,
+          userId: author.id,
+          cardNo: 1 + (i % 3),
+          speciesCommon: MockFishingSpotService.COMMON[sp],
+          speciesScientific: MockFishingSpotService.SCI[sp],
+          iconSpecies: sp,
+          certainty: 0.8 + i * 0.03,
+          placeName: "Lake Tahoe, California",
+          wikiUrl: `https://en.wikipedia.org/wiki/${MockFishingSpotService.SCI[sp].replace(/ /g, "_")}`,
+          caughtAt: created,
+        },
+      };
+    });
+  }
+
+  private posts(): CommunityPost[] {
+    this.demoPosts ??= this.seedPosts();
+    return this.demoPosts;
+  }
+
+  async getFeed(): Promise<CommunityPost[]> {
+    await delay(300);
+    return this.posts().map((p) => ({ ...p, likedByMe: this.myLikes.has(p.id) }));
+  }
+
+  async sharePost(catchId: string, caption?: string): Promise<CommunityPost> {
+    const me = this.loadMe() ?? this.memoryMe;
+    if (!me || me.role === "guest") throw new Error("Only members can share to the community.");
+    const card = this.loadCatches().find((c) => c.id === catchId);
+    if (!card) throw new Error("Card not found.");
+    if (this.posts().some((p) => p.card.id === catchId)) throw new Error("You've already shared this card.");
+    await delay(400);
+    const post: CommunityPost = { id: createId(), userId: me.id, caption: caption?.trim() || undefined, createdAt: new Date().toISOString(), card, author: me, likeCount: 0, likedByMe: false };
+    this.demoPosts = [post, ...this.posts()];
+    for (const l of this.postListeners) l(post);
+    return post;
+  }
+
+  async setLike(postId: string, liked: boolean): Promise<void> {
+    const me = this.loadMe() ?? this.memoryMe;
+    if (!me || me.role === "guest") throw new Error("Only members can like.");
+    if (liked) this.myLikes.add(postId);
+    else this.myLikes.delete(postId);
+    this.demoPosts = this.posts().map((p) => (p.id === postId ? { ...p, likeCount: Math.max(0, p.likeCount + (liked ? 1 : -1)) } : p));
+  }
+
+  subscribePosts(onPost: (post: CommunityPost) => void): () => void {
+    this.postListeners.add(onPost);
+    return () => this.postListeners.delete(onPost);
+  }
+
+  async getSharedCatchIds(userId: string): Promise<Set<string>> {
+    return new Set(this.posts().filter((p) => p.userId === userId).map((p) => p.card.id));
   }
 
   // ── internals ────────────────────────────────────────────────────────────

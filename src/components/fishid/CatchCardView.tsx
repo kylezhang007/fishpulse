@@ -8,11 +8,14 @@ export function CatchCardView({
   card,
   owner,
   justCreated = false,
+  onShare,
   onClose,
 }: {
   card: CatchCard;
   owner?: Profile | null;
   justCreated?: boolean;
+  /** Shown for your own, not-yet-shared cards. */
+  onShare?: () => void;
   onClose: () => void;
 }) {
   const date = new Date(card.caughtAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -92,10 +95,17 @@ export function CatchCardView({
           </div>
         </motion.article>
         <div className="mt-4 flex flex-col items-center gap-2">
-          {justCreated && <p className="text-xs font-bold text-white/90">Saved to your cards ✓ · Community sharing is coming soon</p>}
-          <button className="btn-sky px-8" onClick={onClose}>
-            {justCreated ? "Awesome!" : "Close"}
-          </button>
+          {justCreated && <p className="text-xs font-bold text-white/90">Saved to your cards ✓</p>}
+          <div className="flex gap-2">
+            {onShare && (
+              <button className="btn-primary px-5" onClick={onShare}>
+                🌊 Share to Community
+              </button>
+            )}
+            <button className="btn-sky px-6" onClick={onClose}>
+              {justCreated && !onShare ? "Awesome!" : "Close"}
+            </button>
+          </div>
         </div>
       </motion.div>
     </motion.div>

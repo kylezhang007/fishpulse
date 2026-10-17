@@ -17,7 +17,6 @@ const TABS: { id: TabId; label: string; soon?: boolean; icon: ReactNode }[] = [
   {
     id: "community",
     label: "Community",
-    soon: true,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="9" cy="8.5" r="3.5" />
@@ -50,7 +49,7 @@ const TABS: { id: TabId; label: string; soon?: boolean; icon: ReactNode }[] = [
   },
 ];
 
-/** App-level navigation: Map · Community · (Fish ID) · Chat · Me. Community and Chat are "soon". */
+/** App-level navigation: Map · Community · (Fish ID) · Chat · Me. Chat is "soon". */
 export function TabBar({
   active,
   onChange,

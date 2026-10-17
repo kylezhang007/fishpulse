@@ -462,3 +462,70 @@ button:disabled {
     animation-duration: 0.01s !important;
   }
 }
+
+/* ─── Community "Ocean" ──────────────────────────────────────────────────── */
+.fp-ocean {
+  background: linear-gradient(180deg, #c9eeff 0%, #a6e0ff 9%, #6cc6ff 16%, #3fb2ff 34%, #2a8fe0 62%, #1f6fc4 85%, #1a5aa8 100%);
+}
+.fp-waves {
+  position: absolute;
+  left: 0;
+  width: 200%;
+  height: 46px;
+  pointer-events: none;
+  animation: fp-wave-slide 9s linear infinite;
+}
+.fp-waves--back {
+  opacity: 0.55;
+  animation-duration: 14s;
+  animation-direction: reverse;
+}
+@keyframes fp-wave-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.fp-rise {
+  position: absolute;
+  bottom: -30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  animation: fp-rise 11s ease-in infinite;
+}
+@keyframes fp-rise {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  10% { opacity: 0.9; }
+  50% { transform: translate(14px, -45vh) scale(1); }
+  100% { transform: translate(-8px, -95vh) scale(1.15); opacity: 0; }
+}
+.fp-swim {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.22;
+  animation: fp-swim 26s linear infinite;
+}
+@keyframes fp-swim {
+  from { transform: translateX(-80px); }
+  to { transform: translateX(calc(100vw + 80px)); }
+}
+/* each post drifts on the water */
+.fp-drift {
+  animation: fp-drift 5.5s ease-in-out infinite;
+}
+@keyframes fp-drift {
+  0%, 100% { transform: translateY(0) rotate(-0.6deg); }
+  50% { transform: translateY(-7px) rotate(0.6deg); }
+}
+.fp-like-pop {
+  animation: fp-like-pop 0.45s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+@keyframes fp-like-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45) rotate(-12deg); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-waves, .fp-rise, .fp-swim, .fp-drift { animation: none !important; }
+  .fp-rise, .fp-swim { display: none; }
+}
