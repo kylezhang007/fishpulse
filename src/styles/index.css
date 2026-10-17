@@ -1,0 +1,464 @@
+@import "tailwindcss";
+
+/*
+ * FishPulse "Sunny Lake" theme — bright, friendly, a little bit cute.
+ * Sharing a catch is a happy moment; the UI should feel like it.
+ */
+@theme {
+  --font-sans: "Nunito", ui-rounded, system-ui, -apple-system, sans-serif;
+  --font-display: "Baloo 2", "Nunito", ui-rounded, system-ui, sans-serif;
+
+  --color-ink: #23314d;
+  --color-ink-soft: #5d6b85;
+  --color-ink-mute: #9aa6bb;
+  --color-cream: #fff9ef;
+  --color-sky: #3fb2ff;
+  --color-sky-soft: #e3f4ff;
+  --color-coral: #ff6b81;
+  --color-coral-soft: #ffe8ec;
+  --color-sun: #ffb020;
+  --color-sun-soft: #fff3d6;
+  --color-mint: #2fd39a;
+  --color-mint-soft: #ddf8ee;
+  --color-lilac: #a78bfa;
+}
+
+/* ─── base ─────────────────────────────────────────────────────────────── */
+html,
+body,
+#root {
+  height: 100%;
+  background: var(--color-cream);
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+.font-display {
+  font-family: var(--font-display);
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-sky) 60%, transparent);
+  outline-offset: 2px;
+}
+
+/* ─── surfaces ─────────────────────────────────────────────────────────── */
+@utility glass {
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 10px 30px -12px rgba(35, 49, 77, 0.25),
+    0 2px 6px -2px rgba(35, 49, 77, 0.08);
+}
+@utility glass-strong {
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1.5px solid #fff;
+  box-shadow: 0 -12px 40px -16px rgba(35, 49, 77, 0.3);
+}
+
+.fp-vignette {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 249, 239, 0.55) 0%,
+    transparent 16%,
+    transparent 78%,
+    rgba(255, 249, 239, 0.7) 100%
+  );
+}
+
+/* ─── controls ─────────────────────────────────────────────────────────── */
+.icon-btn {
+  @apply glass grid h-11 w-11 place-items-center rounded-full text-ink-soft transition active:scale-90;
+}
+.icon-btn:hover {
+  color: var(--color-sky);
+}
+.icon-btn--sm {
+  @apply h-9 w-9;
+  background: #f2f5fa;
+  border-color: transparent;
+  box-shadow: none;
+}
+.btn-primary {
+  @apply flex h-12 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-extrabold text-white transition active:scale-[0.97];
+  background: linear-gradient(135deg, #ff8a5c 0%, #ff6b81 55%, #ff5fa2 100%);
+  box-shadow:
+    0 8px 22px -8px rgba(255, 107, 129, 0.8),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.08),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35);
+}
+.btn-primary:disabled {
+  background: #e7ebf2;
+  color: var(--color-ink-mute);
+  box-shadow: none;
+}
+.btn-primary[aria-busy="true"]:disabled {
+  color: #fff;
+  background: linear-gradient(135deg, #ff8a5c 0%, #ff6b81 55%, #ff5fa2 100%);
+  opacity: 0.85;
+}
+.btn-sky {
+  @apply flex h-12 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-extrabold text-white transition active:scale-[0.97];
+  background: linear-gradient(135deg, #5cc8ff 0%, #3fb2ff 60%, #4b8bff 100%);
+  box-shadow:
+    0 8px 22px -8px rgba(63, 178, 255, 0.8),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.08),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35);
+}
+.btn-secondary {
+  @apply rounded-full bg-sky-soft px-4 py-1.5 text-sm font-bold text-sky transition active:scale-95;
+}
+.btn-view {
+  @apply rounded-full px-3.5 py-2 text-xs font-extrabold whitespace-nowrap text-white transition active:scale-95;
+  background: linear-gradient(135deg, #ff8a5c, #ff6b81);
+  box-shadow: 0 6px 14px -6px rgba(255, 107, 129, 0.9);
+}
+.chip {
+  @apply min-h-10 rounded-full border-2 border-[#edf1f7] bg-white px-3.5 text-sm font-bold text-ink-soft transition active:scale-95;
+}
+.chip[data-on] {
+  @apply border-transparent text-white;
+  background: linear-gradient(135deg, #5cc8ff, #3fb2ff);
+  box-shadow: 0 6px 14px -6px rgba(63, 178, 255, 0.9);
+}
+.segmented {
+  @apply grid grid-cols-2 gap-1 rounded-full bg-[#f2f5fa] p-1;
+}
+.segmented > button {
+  @apply min-h-9 rounded-full px-2 text-xs font-bold text-ink-soft transition;
+}
+.segmented > button[data-on] {
+  @apply bg-white text-ink;
+  box-shadow: 0 3px 10px -4px rgba(35, 49, 77, 0.3);
+}
+.activity-option {
+  @apply flex flex-col items-center gap-0.5 rounded-3xl border-2 border-[#edf1f7] bg-white px-2 py-2 transition-colors;
+}
+.field-label {
+  @apply mb-1.5 block text-xs font-extrabold text-ink-soft;
+}
+.input {
+  @apply w-full rounded-2xl border-2 border-[#edf1f7] bg-[#f8fafc] px-3.5 py-2.5 text-base font-semibold text-ink placeholder:font-normal placeholder:text-ink-mute focus:border-sky focus:bg-white focus:outline-none;
+}
+.tag {
+  @apply rounded-full bg-[#f2f5fa] px-2.5 py-1 font-bold text-ink-soft;
+}
+.tag--dashed {
+  @apply border-2 border-dashed border-sky/40 bg-sky-soft text-sky;
+}
+.tag--amber {
+  @apply bg-sun-soft text-[#c98500];
+}
+
+/* ─── primary CTA ──────────────────────────────────────────────────────── */
+.fp-cta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 58px;
+  padding: 0 22px 0 10px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 19px;
+  color: #fff;
+  background: linear-gradient(135deg, #ff9a5c 0%, #ff6b81 50%, #ff5fa2 100%);
+  box-shadow:
+    0 14px 30px -10px rgba(255, 107, 129, 0.85),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.1),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+.fp-cta-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+.fp-cta-glow {
+  position: absolute;
+  inset: -5px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 107, 129, 0.45);
+  animation: fp-cta-pulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes fp-cta-pulse {
+  0% { transform: scale(0.97); opacity: 0.9; }
+  70%, 100% { transform: scale(1.12); opacity: 0; }
+}
+
+/* ─── logo ─────────────────────────────────────────────────────────────── */
+.fp-logo {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #7fd3ff, #3fb2ff);
+  box-shadow: 0 6px 14px -6px rgba(63, 178, 255, 0.9), inset 0 2px 0 rgba(255, 255, 255, 0.4);
+}
+.fp-brand {
+  background: linear-gradient(90deg, #3fb2ff, #7c6bff 55%, #ff6b81);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ─── bobbing / wiggling helpers ───────────────────────────────────────── */
+.fp-bob {
+  animation: fp-bob 2.6s ease-in-out infinite;
+}
+@keyframes fp-bob {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-3px) rotate(3deg); }
+}
+.fp-fish-wiggle {
+  animation: fp-wiggle 1.6s ease-in-out infinite;
+  transform-origin: 60% 50%;
+}
+@keyframes fp-wiggle {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg) translateX(1px); }
+}
+
+/* ─── hotspot marker ───────────────────────────────────────────────────── */
+.fp-marker-host {
+  width: 48px;
+  height: 48px;
+}
+.fp-marker {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.fp-core {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--fp-color);
+  box-shadow:
+    0 6px 12px -4px color-mix(in srgb, var(--fp-color) 70%, transparent),
+    0 1px 2px rgba(35, 49, 77, 0.15);
+  transition: transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.25s;
+}
+.fp-core-inner {
+  display: grid;
+  place-items: center;
+}
+.fp-marker[data-level="high"] .fp-core-inner,
+.fp-marker[data-level="medium"] .fp-core-inner {
+  animation: fp-bob 2.4s ease-in-out infinite;
+}
+.fp-marker[data-level="medium"] .fp-core-inner {
+  animation-duration: 3.4s;
+}
+.fp-marker:hover .fp-core {
+  transform: scale(1.12) rotate(-4deg);
+}
+.fp-marker[data-selected] .fp-core {
+  transform: scale(1.28);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--fp-color) 25%, transparent),
+    0 10px 18px -6px color-mix(in srgb, var(--fp-color) 80%, transparent);
+}
+.fp-selected-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2.5px dashed var(--fp-color);
+  opacity: 0.7;
+  animation: fp-spin 8s linear infinite;
+  pointer-events: none;
+}
+@keyframes fp-spin {
+  to { transform: rotate(360deg); }
+}
+.fp-approx-ring {
+  position: absolute;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 2px dashed color-mix(in srgb, var(--fp-color) 55%, transparent);
+  background: color-mix(in srgb, var(--fp-color) 10%, transparent);
+  pointer-events: none;
+}
+
+/* idle bubbles — only on "biting like crazy" spots, transform/opacity only */
+.fp-bubbles {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.fp-bubbles > span {
+  position: absolute;
+  bottom: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid color-mix(in srgb, var(--fp-color) 60%, #fff);
+  opacity: 0;
+  animation: fp-bubble 3.6s ease-out infinite;
+}
+.fp-bubbles > span:nth-child(1) { left: -10px; }
+.fp-bubbles > span:nth-child(2) { left: 4px; width: 5px; height: 5px; animation-delay: 1.2s; }
+.fp-bubbles > span:nth-child(3) { left: -2px; width: 9px; height: 9px; animation-delay: 2.4s; }
+@keyframes fp-bubble {
+  0% { transform: translate(0, 0) scale(0.4); opacity: 0; }
+  15% { opacity: 1; }
+  60% { transform: translate(4px, -26px) scale(1); opacity: 0.9; }
+  100% { transform: translate(-2px, -40px) scale(1.1); opacity: 0; }
+}
+
+/* water ripples (new report) */
+.fp-sonar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.fp-ring {
+  position: absolute;
+  left: calc(var(--fp-size) / -2);
+  top: calc(var(--fp-size) / -2);
+  width: var(--fp-size);
+  height: var(--fp-size);
+  border-radius: 50%;
+  border: 3px solid var(--fp-ring);
+  background: color-mix(in srgb, var(--fp-ring) 14%, transparent);
+  transform: scale(0.1);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.fp-ring--burst {
+  animation: fp-ring-burst 2s cubic-bezier(0.15, 0.7, 0.3, 1) forwards;
+}
+.fp-ring--idle {
+  border-width: 2px;
+  background: none;
+  animation: fp-ring-idle 3.2s ease-out infinite;
+}
+@keyframes fp-ring-burst {
+  0% { transform: scale(0.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+@keyframes fp-ring-idle {
+  0% { transform: scale(0.4); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.fp-sonar-flash {
+  position: absolute;
+  left: -36px;
+  top: -36px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, color-mix(in srgb, var(--fp-ring) 50%, #fff) 40%, transparent 70%);
+  animation: fp-flash 0.8s ease-out forwards;
+}
+@keyframes fp-flash {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* "you are here" — local only */
+.fp-user-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3fb2ff;
+  border: 3.5px solid #fff;
+  box-shadow: 0 0 0 7px rgba(63, 178, 255, 0.22), 0 3px 8px rgba(35, 49, 77, 0.3);
+}
+
+/* ─── loader ───────────────────────────────────────────────────────────── */
+.fp-loader {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 4px solid var(--color-sky-soft);
+  border-top-color: var(--color-sky);
+  animation: fp-spin 0.8s linear infinite;
+}
+.fp-loader--sm {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-width: 2.5px;
+}
+.fp-loader--light {
+  border-color: rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+}
+
+/* ─── MapLibre chrome ──────────────────────────────────────────────────── */
+.maplibregl-ctrl-bottom-right {
+  bottom: calc(env(safe-area-inset-bottom) + 150px);
+}
+.maplibregl-ctrl-attrib {
+  background: rgba(255, 255, 255, 0.8) !important;
+  color: var(--color-ink-mute);
+  font-size: 10px;
+  border-radius: 999px !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--color-ink-soft) !important;
+}
+.maplibregl-canvas:focus-visible {
+  outline: none;
+}
+
+/* ─── reduced motion ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .fp-ring--idle,
+  .fp-cta-glow,
+  .fp-fish-wiggle,
+  .fp-bob,
+  .fp-selected-ring,
+  .fp-marker .fp-core-inner {
+    animation: none !important;
+  }
+  .fp-bubbles {
+    display: none;
+  }
+  .fp-ring--burst {
+    animation-duration: 0.01s !important;
+  }
+}

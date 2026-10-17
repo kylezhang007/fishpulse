@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vercel
+deploy/
+deploy-v2/
+.claude/
+CODES.local.md
+*.local.md
+supabase/.temp/
