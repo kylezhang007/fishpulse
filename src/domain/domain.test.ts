@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FishingSpot } from "../types/fishing";
 import { classifyArrival, isSpotActive, mergeSpots, pruneExpired, SeenRegistry, spotFreshness } from "./spots";
-import { approximateLocation, distanceMeters, isValidCoordinate } from "./location";
+import { approximateLocation, distanceMeters, googleMapsDirectionsUrl, isValidCoordinate } from "./location";
 import { normalizeInput, validateSpotInput, GUEST_NAME } from "./validation";
 import { formatAgo } from "./time";
 import { createId } from "./id";
@@ -89,6 +89,12 @@ describe("location privacy", () => {
     expect(approximateLocation({ lat: p.lat + 0.0001, lng: p.lng + 0.0001 })).toEqual(a);
     expect(distanceMeters(p, a)).toBeLessThan(300);
     expect(a).not.toEqual(p);
+  });
+
+  it("builds a Google Maps directions link", () => {
+    expect(googleMapsDirectionsUrl({ lat: 39.0912345678, lng: -120.04 })).toBe(
+      "https://www.google.com/maps/dir/?api=1&destination=39.091235,-120.04",
+    );
   });
 
   it("validates coordinate ranges", () => {

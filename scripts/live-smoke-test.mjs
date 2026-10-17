@@ -18,7 +18,7 @@ const KEY = env.VITE_SUPABASE_ANON_KEY;
 if (!URL_ || !KEY) throw new Error("Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env");
 // Test-only invite code (local .env only) so test runs never use up the real <MEMBER_INVITE_CODE> seats.
 const SMOKE_CODE = env.SMOKE_INVITE_CODE;
-if (!SMOKE_CODE) throw new Error("Set SMOKE_INVITE_CODE in .env (see README → Live smoke test)");
+if (!SMOKE_CODE) throw new Error("Set SMOKE_INVITE_CODE in .env (see README_AI.md → Live smoke test)");
 
 const opts = { auth: { persistSession: false, autoRefreshToken: false } };
 const results = [];

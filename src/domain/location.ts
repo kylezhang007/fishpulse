@@ -53,3 +53,8 @@ function round6(n: number) {
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
+
+/** Google Maps directions link (opens the Google Maps app on phones, the website elsewhere). */
+export function googleMapsDirectionsUrl(p: LatLng): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${round6(p.lat)},${round6(p.lng)}`;
+}

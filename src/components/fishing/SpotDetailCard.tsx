@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { distanceMeters, formatDistance } from "../../domain/location";
+import { distanceMeters, formatDistance, googleMapsDirectionsUrl } from "../../domain/location";
 import { formatAgo, formatRemaining } from "../../domain/time";
 import { ACTIVITY_META, type FishingSpot, type LatLng, type Profile } from "../../types/fishing";
 import { Avatar } from "../ui/Avatar";
@@ -81,10 +81,21 @@ export function SpotDetailCard({
         {spot.isSample && <span className="tag tag--amber">Sample data</span>}
       </div>
 
-      <button className="btn-sky mt-4 w-full" onClick={onViewSpot}>
-        🗺️ View spot on map
-      </button>
-      <p className="mt-2 text-center text-[10px] font-semibold text-ink-mute">Shared by the community · not verified · fish move fast!</p>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button className="btn-sky" onClick={onViewSpot}>
+          🗺️ View on map
+        </button>
+        <a
+          className="btn-primary"
+          href={googleMapsDirectionsUrl({ lat: spot.latitude, lng: spot.longitude })}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Navigate to this ${spot.fishType} spot in Google Maps`}
+        >
+          🧭 Navigate
+        </a>
+      </div>
+      <p className="mt-2 text-center text-[10px] font-semibold text-ink-mute">{spot.isApproximate ? "Navigate takes you to the rough area, not the exact spot · " : ""}Shared by the community · not verified · fish move fast!</p>
     </BottomSheet>
   );
 }

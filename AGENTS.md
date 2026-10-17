@@ -1,7 +1,7 @@
 # AGENTS.md — handoff notes for AI coding assistants
 
 Read this before you change anything in FishPulse. It captures the team's rules, the live setup, and the traps we already hit.
-Humans: the README is the full manual. This file is the short version for an AI picking up the work.
+Humans: `README_AI.md` is the full team/AI manual; `README.md` is the short English page for hackathon judges and visitors. This file is the short version for an AI picking up the work.
 
 ## 1. What this is
 
@@ -15,7 +15,7 @@ have it identified by AI (Fishial.ai), and collect a "catch card".
 
 ## 2. Hard rules (do not break)
 
-1. **Update `README.md` in the same change, every time.** That includes any feature, config, migration, deploy, or URL change, plus a dated line in the README **Changelog**. If architecture or the roadmap changes, also update `docs/ARCHITECTURE.md` and `docs/ROADMAP.md`. The owner asked for this explicitly.
+1. **Update `README_AI.md` in the same change, every time.** That includes any feature, config, migration, deploy, or URL change, plus a dated line in its **Changelog**. Keep `README.md` (judge-facing, concise, English) accurate when a headline feature or link changes; never put codes, setup secrets or internal notes there. If architecture or the roadmap changes, also update `docs/ARCHITECTURE.md` and `docs/ROADMAP.md`. The owner asked for this explicitly.
 2. **Never commit secrets or access codes.** Docs use placeholders `<MEMBER_INVITE_CODE>` and `<ADMIN_CODE>`; the real values live in the git-ignored `CODES.local.md` and in the database. `.env` is git-ignored. Before committing, run `grep -rn "SMOKETEST-\|sb_secret\|service_role" --exclude-dir=node_modules .` and make sure the real invite or admin codes aren't in the diff.
 3. **Never put server secrets in `VITE_*` variables.** Those are shipped to the browser. Only the Supabase **publishable** key goes there. The Fishial keys live only in Supabase → Edge Functions → Secrets (`FISHIAL_CLIENT_ID`, `FISHIAL_CLIENT_SECRET`).
 4. **Fishial credits cost money:** 200 per month. Every real Fish ID call uses one. Develop and test with **Demo Mode** (simulated recognition). Make a real call only when the owner agrees, and say how many credits you used.
