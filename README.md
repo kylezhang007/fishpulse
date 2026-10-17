@@ -19,6 +19,8 @@ FishPulse is a real-time, community-powered fishing activity map. An angler taps
 
 ## 中文速览（团队用）
 
+- **代码仓库**：https://github.com/kylezhang007/fishpulse（**私有**）。给 AI 看的交接说明在 `AGENTS.md`，Claude Code 会自动读取 `CLAUDE.md`。真实的邀请码只存在你本机的 `CODES.local.md` 里，不会上传。
+
 - **主站** https://fishpulse-v2.vercel.app：所有人分享的鱼情实时互相可见（Supabase）。
 - **界面语言**：所有功能和界面文字都以**英文**展示。
 - **本地预览**：双击 `打开FishPulse.command`，会自动构建并在浏览器打开 http://localhost:4173。
@@ -248,6 +250,7 @@ docs/                         ARCHITECTURE.md, ROADMAP.md
 
 ## Docs
 
+* [AGENTS.md](AGENTS.md): rules, setup, and known traps for AI assistants (read this before editing).
 * [Architecture](docs/ARCHITECTURE.md): layers, data flow, realtime handling, and the animation trigger system.
 * [Known limitations & roadmap](docs/ROADMAP.md)
 
@@ -265,6 +268,7 @@ docs/                         ARCHITECTURE.md, ROADMAP.md
 
 ## Changelog
 
+* **2026-10-17:** Pushed to the private GitHub repo **kylezhang007/fishpulse** (82 files; secrets scan clean). Added `AGENTS.md` (handoff notes for AI assistants) and `CLAUDE.md`. Access codes in docs and migrations are now placeholders (`<MEMBER_INVITE_CODE>`, `<ADMIN_CODE>`); the real values are in the git-ignored `CODES.local.md`. Also created a source zip (`git archive`) next to the project folder. **Before making the repo public, change the admin code:** it equals the admin's public display name.
 * **2026-10-17 (Phase B, Fish ID):** **Live.** The 📷 centre button takes a photo, compresses it, looks up a one-shot place name (OpenStreetMap), and sends it to the Edge Function `identify-fish`. The function checks member or admin, applies the monthly quota (admins exempt), calls Fishial v2 (`/auth` then `/recognize`), stores the photo in the public `catch-photos` bucket, and inserts a `catches` row. The result is a flip-in collectible card (No., AI %, species and icon, scientific name, date, 📍 place, Wikipedia link, owner) that also appears on the Me page wall. Verified on the real backend: a bass photo returned *Largemouth black bass* (*Micropterus nigricans*) at 79% and 75%, mapped to the Bass icon. The photo URL is public, the quota went from 5 to 4 for a test member, and the admin sees "Unlimited". Testing used **2 Fishial credits**. Published to fishpulse-v2.
 * **2026-10-17:** Moved the project to `~/Documents/FishPulse/fishpulse` (full copy, verified identical; typecheck, tests, and build pass there). The old temporary session folder is no longer used.
 * **2026-10-17 (admin):** Added the admin account: enter code `<ADMIN_CODE>` (any case, no name needed) to become **👑 Admin "kylezhang"**, on up to 5 devices. Admins get unlimited Fish ID once Phase B lands and an Admin tools card on the Me page with **🧹 Clear all hotspots**, which needs two taps (the second within 4 s) and then broadcasts a "refresh" so every open page drops the cleared spots instantly. Backup: a saved SQL Editor query. Migration `20261017010000_admin.sql` has been **run**. `npm run test:live` now covers 21 checks (non-admins can't clear, "kylezhang" is reserved, the refresh broadcast arrives), and all pass. The admin clear itself wasn't run on live data. Published to fishpulse-v2 (Live Mode); the bundle contains no codes.
